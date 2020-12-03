@@ -1,0 +1,22 @@
+clc; clear all; close all;
+% Code to read prior probabilities from excel sheet
+excel_filename = 'prior_probabilities.xlsx';
+excel_sheetname = 'Prior';
+[num,txt,raw] = xlsread(excel_filename,excel_sheetname);
+% Search all the rows with N = 3
+N = 4;
+switch N
+    case 3
+        search_column = num(:,1);
+        search_row_indices = find(search_column==1);
+        search_col_indices = 17;
+    case 4
+        search_column = num(:,2);
+        search_row_indices = find(search_column==1);
+        search_col_indices = [17, 18, 20];
+    case 5
+        search_column = num(:,3);
+        search_row_indices = find(search_column==1);
+end
+
+
