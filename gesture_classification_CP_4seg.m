@@ -36,7 +36,7 @@ end
 probability_score = probability_score./sum(probability_score);
 disp(['Probability scores: ',num2str(probability_score)]);
 [~,max_ind] = max(probability_score);
-character_list = {'A','R','J','M','O'};
+character_list = {'A','O','R','J','M'};
 character = character_list{max_ind};
 % disp(['Character: ',character]);
 end

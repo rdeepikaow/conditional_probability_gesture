@@ -9,8 +9,9 @@ motion_stats_bak = motion_stats;
 motion_stats(discard_indices) = 0;
 
 %% Obtain initial point
-modified_peaks = (1:length(peaks))-peaks+turn_index-1;
-start_index = find(modified_peaks~=0,1);
+% modified_peaks = (1:length(peaks))-peaks+turn_index-1;
+% start_index = find(modified_peaks~=0,1);
+start_index = find(peaks~=0,1);
 
 %% Function implements dynamic programming to track the peaks
 % Costs:(a) Smoother curve incurs lower cost.
@@ -38,7 +39,8 @@ for i = start_index+1:N
     for j = 1:L
         min_cost = 1e10;min_index = 1;
         for k = 1:L
-            if (modified_peaks(i)~=0 && peaks(i)~=0)
+            %             if (modified_peaks(i)~=0 && peaks(i)~=0)
+            if (peaks(i)~=0)
                 %                 test_cost = 5*abs(k-j)./(motion(i)+eps) + abs(j-peaks(i)) + 20*abs(matrix(j,i)-matrix(peaks(i),i))  + previous_cost(k);
                 test_cost = 15*abs(k-j) + abs(j-peaks(i)) + 20*abs(matrix(j,i)-matrix(peaks(i),i))  + previous_cost(k);
             else
@@ -80,30 +82,31 @@ if (debug)
 end
 
 %% Discontinue the peak trace at which there is a drastic jump
-difference_peak_trace = diff(peaks_tracked);
-discontinuity_indices = find(abs(difference_peak_trace)>100,1);
+% difference_peak_trace = diff(peaks_tracked);
+% discontinuity_indices = find(abs(difference_peak_trace)>100,1);
 
 %% Also check if the significance of the peaks is higher after this
-peak_significance = peak_significance(turn_index:end);
+% peak_significance = peak_significance(turn_index:end);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% add if needed
-if (~isempty(discontinuity_indices))
-    peaks_tracked_continuous = peaks_tracked(1:discontinuity_indices);
-else
-    peaks_tracked_continuous = peaks_tracked;
-end
-if (debug)
-    figure; plot(peaks_tracked); hold on;grid on; plot(peaks_tracked_continuous,'b*'); hold on;grid on;
-end
+% if (~isempty(discontinuity_indices))
+%     peaks_tracked_continuous = peaks_tracked(1:discontinuity_indices);
+% else
+%     peaks_tracked_continuous = peaks_tracked;
+% end
+% if (debug)
+%     figure; plot(peaks_tracked); hold on;grid on; plot(peaks_tracked_continuous,'b*'); hold on;grid on;
+% end
 %% Remove detected peaks which are very far apart from the predicted peak trace
-predicted_actual_difference = abs(peaks_tracked(1:length(peaks_tracked_continuous))-peaks_tracked_continuous);
-remove_indices = predicted_actual_difference>100;
-peaks_tracked_continuous(remove_indices) = nan;
-
-if (debug)
-    figure; plot(peaks_tracked); hold on;grid on; plot(peaks_tracked_continuous,'b*'); hold on;grid on;
-    figure;
-    imagesc(matrix_bak); colorbar; hold on;grid on; plot(peaks_tracked_continuous,'b*'); hold on;grid on;
-end
+% predicted_actual_difference = abs(peaks_tracked(1:length(peaks_tracked_continuous))-peaks_tracked_continuous);
+% remove_indices = predicted_actual_difference>100;
+% peaks_tracked_continuous(remove_indices) = nan;
+peaks_tracked_continuous = peaks_tracked;
+%
+% if (debug)
+%     figure; plot(peaks_tracked); hold on;grid on; plot(peaks_tracked_continuous,'b*'); hold on;grid on;
+%     figure;
+%     imagesc(matrix_bak); colorbar; hold on;grid on; plot(peaks_tracked_continuous,'b*'); hold on;grid on;
+% end
 %% Calculate the fraction of the segment with the peaks
 peak_trace_end_point = find(~isnan(peaks_tracked_continuous),1,'last');
 motion_stats = motion_stats_bak(turn_index:end);
@@ -122,7 +125,7 @@ peaks_tracked_final = nan(size(peaks_tracked_continuous));
 peaks_tracked_final(peaks_tracked_continuous>=5) = peaks_bak(peaks_tracked_continuous>=5);
 
 %% Remove the maximum peaks sample locations
-x = 1:length(peaks_tracked_final);
-y = turn_index - 2*x+2;
-difference_from_end = abs(y-peaks_tracked_final);
-peaks_tracked_final(difference_from_end==0) = nan;
+% x = 1:length(peaks_tracked_final);
+% y = turn_index - 2*x+2;
+% difference_from_end = abs(y-peaks_tracked_final);
+% peaks_tracked_final(difference_from_end==0) = nan;

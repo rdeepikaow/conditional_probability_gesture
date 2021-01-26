@@ -121,8 +121,7 @@ classdef TurnAngleEstimation
 %             fraction_area_SV = area_under_SV/area_under_SP;
             fraction_area = area_under_SP/area_under_SV;
             disp(['Fraction SV: ', num2str(fraction_area)]);
-%             disp(['Fraction PV: ', num2str(fraction_area_PV)]);
-            
+%             disp(['Fraction PV: ', num2str(fraction_area_PV)]);            
         end
         
         
@@ -144,10 +143,10 @@ classdef TurnAngleEstimation
             peak_valley_val = zeros(1,N);
             
             for i = turn_index:N
-                if (i==1087)
+                if (i==1310)
                     temp = 1;
                 end
-                peak_loc_max = min(max(ceil(2*(i-turn_index)),1),turn_index-1);
+%                 peak_loc_max = min(max(ceil(2*(i-turn_index)),1),turn_index-1);
                 vector = similarity_matrix(turn_index:-1:1,i);
 %                 vector = smooth(vector,0.3,'rloess');
                 [potential_peaks{i},potential_peaks_significances{i},potential_valleys{i}] = obj.peakAnalysis(vector);
@@ -157,17 +156,19 @@ classdef TurnAngleEstimation
                     peak_significance(i) = potential_peaks_significances{i}(max_loc);
                     peak_loc(i) = turn_index-array_peaks(max_loc,1)+1;%-turn_index);
                     %%%%%% If peak is not detected near the turn,ignore%%%
-                    if 2*abs(i-turn_index)<(turn_index-peak_loc(i))
-                        peak_loc(i) = 0;
-                        peak_significance(i)= 0 ;
-                        continue;
-                    end
+%                     if 2*abs(i-turn_index)<(turn_index-peak_loc(i))
+%                         peak_loc(i) = 0;
+%                         peak_significance(i)= 0 ;
+%                         continue;
+%                     end
                     %% If peak not detected at the end of segment,ignore%%
-                    if 0.5*abs(i-turn_index)>abs(peak_loc(i)-turn_index)
-                        peak_loc(i) = 0;
-                        peak_significance(i) = 0;
-                        continue;
-                    end
+%                     if 0.5*abs(i-turn_index)>abs(peak_loc(i)-turn_index)
+%                         peak_loc(i) = 0;
+%                         peak_significance(i) = 0;
+%                         continue;
+%                     end
+%                     
+                    
                     
                     [valley_val(i),valley_loc(i)] = min(similarity_matrix(i:-1:peak_loc(i),i));
                     %% New addition:
@@ -177,8 +178,16 @@ classdef TurnAngleEstimation
                     valley_val(i) = similarity_matrix(obj.turn_index_,i);
                     %valley_loc(i) = i-valley_loc(i)+1;%-turn_index);
                     peak_valley_val(i) = similarity_matrix(peak_loc(i),valley_loc(i));
+%                     if (turn_index-peak_loc(i)<i-turn_index+50)
+%                         peak_loc(i) = 0; peak_val(i) = 0;
+%                         peak_significance(i) = 0;peak_valley_val(i)=0;
+%                         valley_loc(i) = 0 ; valley_val(i) = 0;
+%                         continue;
+%                     end
+                    
                 end
             end
+            
             obj.potential_peaks_ = potential_peaks;
             obj.peak_val_ = peak_val;
             obj.peak_loc_ = peak_loc;
@@ -200,6 +209,8 @@ classdef TurnAngleEstimation
                 plot((valley_loc)); hold on;grid on;
                 legend('peak loc','valley loc');
             end
+            
+            
             obj = obj.peakTracking();
         end
         
@@ -251,7 +262,7 @@ classdef TurnAngleEstimation
                     peaks = [peaks, [-index; signal(index)]];
                 end
             end
-            % Extract the first two highest peaks and the lowest valley
+            % Extract the peaks between two valleys
             potential_peaks = [];
             potential_peaks_significances = [];
             potential_valleys = [];

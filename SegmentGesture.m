@@ -104,10 +104,10 @@ classdef SegmentGesture
                 ax = gca; ax.FontSize = 14;
             end
             obj = obj.find_extremums(smoothed_ms);
-            %% Identify the top peak
-            top_peak_index = find(obj.peaks_(2,:)>0 & obj.peaks_(1,:)>0, 1);
+            %% Identify the first peak- check if atleast one peak is detected
+            first_peak_index = find(obj.peaks_(2,:)>0 & obj.peaks_(1,:)>0, 1);
             if (obj.debug_)
-                if (~isempty(top_peak_index))
+                if (~isempty(first_peak_index))
                     disp(['Atleast one gesture segment detected!']);
                 else
                     disp(['No segment is detected!']);
@@ -121,7 +121,8 @@ classdef SegmentGesture
                 end
             end
             
-            highest_peak_significance = peak_significances(top_peak_index);
+%             highest_peak_significance = peak_significances(top_peak_index);
+            highest_peak_significance = max(peak_significances);
             segment_peaks = find(peak_significances>highest_peak_significance/3 & obj.peaks_(2,:)>0.01);
             obj.num_segments_ = length(segment_peaks);
             obj.segments_start_ = zeros(1,obj.num_segments_);

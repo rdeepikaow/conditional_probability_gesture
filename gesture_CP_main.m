@@ -4,6 +4,7 @@
 % approach.
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 clc; clear all; close all;
+addpath(' C:\Users\origingpu\Desktop\5GHz_Gesture');
 debug = 1;
 params_gesture_construction.sf = 4; % Sampling factor
 params_gesture_construction.display_min = 0.95; % caxis min for display
@@ -17,7 +18,7 @@ params_gesture_construction.similarity_method = 'trrs'; %'trrs','correlation_pha
 params_angle_estimation.peak_detection_window = 100;
 params_angle_estimation.peak_tracking_max_queue = 50;
 params_angle_estimation.peak_tracking_max_jump = 100;
-params_angle_estimation.debug = 0;
+params_angle_estimation.debug = 1;
 params_angle_estimation.sf = params_gesture_construction.sf;
 
 if (strcmp(params_gesture_construction.similarity_method,'trrs'))
@@ -29,19 +30,19 @@ else
 end
 
 params_gesture_segmentation.ccf_similarity_decay_smooth_win = 100;
-params_gesture_segmentation.sounding_rate_set = 3000; %Hz
+params_gesture_segmentation.sounding_rate_set = 1500; %Hz
 params_angle_estimation.sounding_rate_set = params_gesture_segmentation.sounding_rate_set;
 params_gesture_segmentation.min_segment_duration = 0.3; %sec
 params_gesture_segmentation.local_peak_win = 96;
-params_gesture_segmentation.debug = 0;
+params_gesture_segmentation.debug = 1;
 
-direc = dir(fullfile('D:\WiCode\*10172020*\','*Yshape_loc6_set3_NLOS_3*.mat_phase_comp.mat'));
+direc = dir(fullfile('D:\WiCode\10192020_additional_data_to_10172020\','*Dshape_*_NLOS*.mat_phase_comp.mat'));
 accuracy_total = 0;
 accuracy_correct = 0;
 predicted_characters_indices = [];
 groundTruth_characters_indices = [];
 character_list = {'D','P','T','X','Y','Z'};
-for ff = 1:size(direc,1)
+for ff = 24
     filename = strcat(direc(ff).folder,'/',direc(ff).name);
     matfilename = filename;
     if contains(filename,'phase_comp.mat')
@@ -63,10 +64,10 @@ for ff = 1:size(direc,1)
     segments_stop = segment_gesture.segments_stop_;
     num_segments = segment_gesture.num_segments_;
     disp(['Number of segments: ',num2str(num_segments)]);
-    if (num_segments~=3)
-        continue;
-    end
-    groundTruth_characters_indices = [groundTruth_characters_indices find(strcmp(extractedGT{1},character_list),1)];
+%     if (num_segments~=3)
+%         continue;
+%     end
+%     groundTruth_characters_indices = [groundTruth_characters_indices find(strcmp(extractedGT{1},character_list),1)];
     
     accuracy_total = accuracy_total + 1;
     smoothed_ms = segment_gesture.smoothed_ms_;
@@ -105,81 +106,126 @@ for ff = 1:size(direc,1)
             figure;
             imagesc(smatrix(start_index:stop_index,start_index:stop_index)); colorbar; hold on;grid on;caxis([y_upper_limit 1]);
             plot((1:length(tracked_peaks_backward))+turn_index-1,tracked_peaks_backward,'b*'); hold on;grid on;
+%             deg180_matrix = smatrix(start_index+400:start_index+1300,start_index+400:start_index+1300);
+%             deg180_vector = deg180_matrix(700,700:-1:1);
+%             deg180_vector_smooth = smooth(deg180_vector,0.3,'rloess');
+            deg180_matrix = smatrix(start_index+186:start_index+1272,start_index+186:start_index+1272);
+            deg180_vector = deg180_matrix(832,832:-1:1);
+            deg180_vector_smooth = smooth(deg180_vector,0.3,'rloess');
+            figure;
+            imagesc(deg180_matrix);colorbar; caxis([0.9 1]);
+            xlabel('CSI sample index'); ylabel('CSI sample index');
+            ax = gca; ax.FontSize = 12;
+            figure;
+            plot(deg180_vector); hold on;grid on;
+            plot(deg180_vector_smooth,'k--','LineWidth',2); hold on;grid on;
+            legend('Raw TRRS','Smoothened TRRS');
+            ax  = gca; ax.FontSize = 12;          
         end
         %%%%%%%%%%%%%%%% Features for turn angle classification %%%%%%%%%%%%%%%%%%%
-        % SV -> Sample to Valley
+        % ST -> Sample to Valley
         % SP -> Sample to Peak
-        % PV -> Peak to Valley
-        SV = zeros(1,length(start_index+turn_index-1:stop_index));
+        % PT -> Peak to Valley
+        ST = zeros(1,length(start_index+turn_index-1:stop_index));
         SP = zeros(1,length(start_index+turn_index-1:stop_index));
-        PV = zeros(1,length(start_index+turn_index-1:stop_index));
+        PT = zeros(1,length(start_index+turn_index-1:stop_index));
         matrix = smatrix(start_index:stop_index,start_index:stop_index);
-        for i = 1:min(length(SV),length(tracked_peaks_backward))
+        for i = 1:min(length(ST),length(tracked_peaks_backward))
             if (~isnan(tracked_peaks_backward(i)) && tracked_peaks_backward(i)~=0)
-                SV(i) = matrix(turn_index+i-1,turn_index);
+                ST(i) = matrix(turn_index+i-1,turn_index);
                 SP(i) = matrix(turn_index+i-1,tracked_peaks_backward(i));
-                PV(i) = matrix(turn_index,tracked_peaks_backward(i));
+                PT(i) = matrix(turn_index,tracked_peaks_backward(i));
             end
         end
-        
         
         if (debug)
             figure;
             subplot(3,1,1);
-            plot(SV); hold on;grid on;ylim([y_upper_limit 1]);
+            plot(ST); hold on;grid on;ylim([y_upper_limit 1]);
             title('Sample to Valley');
             subplot(3,1,2);
             plot(SP); hold on;grid on;ylim([y_upper_limit 1]);
             title('Sample to Peak');
             subplot(3,1,3);
-            plot(PV); hold on;grid on;ylim([y_upper_limit 1]);
+            plot(PT); hold on;grid on;ylim([y_upper_limit 1]);
             title('Peak to Valley');
             
             figure;
-            plot(SV); hold on;grid on;ylim([y_upper_limit 1]);
+            plot(ST); hold on;grid on;ylim([y_upper_limit 1]);
             plot(SP); hold on;grid on;ylim([y_upper_limit 1]);
-            plot(PV); hold on;grid on;ylim([y_upper_limit 1]);
-            legend('SV','SP','PV');
+            plot(PT); hold on;grid on;ylim([y_upper_limit 1]);
+            legend('ST','SP','PT');
             ax = gca;
             ax.FontSize = 12;
         end
+        %%%%%%%%%%%%%% temp fig gen addition %%%%%%%%%%%%%%
+%         ST = ST(1:500);
+%         SP = SP(1:500);
+%         PT = PT(1:500);
+%         ST = ST(1:100);
+%         SP = SP(1:100);
+%         PT = PT(1:100);
+        %%%%%%%%%%%%%% temp fig gen addition %%%%%%%%%%%%%%
         
         %% Raw feature processing
-        SV = SV(SV~=0);
+        ST = hampel(1:length(ST),ST,5);
+        SP = hampel(1:length(SP),SP,5);
+        PT = hampel(1:length(PT),PT,5);
+        SV_first_nz_index = find(ST~=0,1,'first');
+        PV_first_nz_index = find(PT~=0,1,'first');
+        SP_first_nz_index = find(SP~=0,1,'first');
+        
+        SV_last_nz_index = find(ST~=0,1,'last');
+        PV_last_nz_index = find(PT~=0,1,'last');
+        SP_last_nz_index = find(SP~=0,1,'last');
+        
+        ST = ST(ST~=0);
         SP = SP(SP~=0);
-        PV = PV(PV~=0);
+        PT = PT(PT~=0);
         % Remove outliers
-        SV = hampel(1:length(SV),SV,10);
+        ST = hampel(1:length(ST),ST,10);
         SP = hampel(1:length(SP),SP,10);
-        PV = hampel(1:length(PV),PV,10);
-        SV = movmean(SV,20);
+        PT = hampel(1:length(PT),PT,10);
+        ST = movmean(ST,20);
         SP = movmean(SP,20);
-        PV = movmean(PV,20);
+        PT = movmean(PT,20);
         if (debug)
             figure;
-            plot(SV); hold on;grid on;
-            plot(SP); hold on;grid on;
-            plot(PV); hold on;grid on;
-            legend('SV','SP','PV');
+            constant_y = 0.984.*ones(1,length(SP));
+            plot(SP,'b-','LineWidth',2); hold on;grid on;
+            plot(PT,'k-','LineWidth',2); hold on;grid on;
+            plot(constant_y,'k-'); hold on;grid on;
+            x = [1:length(SP) ,length(SP):-1:1];
+            yy = [SP',constant_y];
+            fill(x,yy,[0.00,0.60,1.00],'FaceAlpha',0.5) ; hold on;grid on; 
+            yy1 = [PT',constant_y];
+            for v = 1:length(SP)
+                plot([v,v],[constant_y(1),PT(v)],'k-');hold on;grid on;
+            end
+            legend('SP','PT');
+            xlabel('CSI sample index');
+            ylabel('TRRS');
             ax = gca;
             ax.FontSize = 12;
+            xlim([1 length(SP)]);
         end
         
         upper_bound = (SP(find(SP>0.9,1,'first')));
-        difference_PV = upper_bound-PV(PV~=0);
-        difference_PV(difference_PV<0) = 0;
-        difference_SP = sum(upper_bound-SP(SP~=0));
+        difference_SV = upper_bound-ST(ST~=0);
+        difference_SV(difference_SV<0) = 0;
+        difference_SP = (upper_bound-SP(SP~=0));
         difference_SP(difference_SP<0) = 0;
-        area_under_PV = sum(difference_PV);
+        area_under_SV = sum(difference_SV);
         area_under_SP = sum(difference_SP);
-        fraction_area = area_under_SP/area_under_PV;
+        fraction_area = area_under_SP/area_under_SV;
         if (fraction_area==0)
             fraction_area = 2;% Any value greater than 1.
         end
-        peaks_detected_fraction = nnz(PV)/(stop_index-start_index-turn_index);
+        peaks_detected_fraction = PV_last_nz_index/(stop_index-start_index-turn_index+2);
+%         peaks_detected_fraction = (nnz(PT)+PV_first_nz_index)/(stop_index-start_index-turn_index);
         if (debug)
-            disp(['a_f: ', num2str(fraction_area)]);
-            disp(['rho_f: ',num2str(peaks_detected_fraction)]);
+            disp(['area ratio: ', num2str(fraction_area)]);
+            disp(['peaks detected length: ',num2str(peaks_detected_fraction)]);
         end
         P_angle_zero = (1-min(1,fraction_area))*peaks_detected_fraction;
         P_angle_acute = min(1,fraction_area);
@@ -261,29 +307,29 @@ for ff = 1:size(direc,1)
             end
         end
     end
-    if (debug)
-        disp(['Matching points: ',num2str(matching_points_fractions)]);
-    end
-    [character,pscore,posterior_CP_matching] = gesture_classification_CP(angle_probabilities,matching_points_fractions);
-    predicted_characters_indices = [predicted_characters_indices find(strcmp(character_list,character),1,'first')];
-    
-    data = [];
-    data.angle_probabilities = angle_probabilities;
-    data.matching_point_fractions = matching_points_fractions;
-    data.matching_point_probabilities = posterior_CP_matching;
-    data.pscore = pscore;
-    data.characters = character_list;
-    savefilename = strrep(filename,'.mat_phase_comp.mat','feature.mat');
-    save(savefilename,'data');
-    disp(['<strong>The gesture shape is: ',character,'</strong>!']);
-    close all;
+%     if (debug)
+%         disp(['Matching points: ',num2str(matching_points_fractions)]);
+%     end
+%     [character,pscore,posterior_CP_matching] = gesture_classification_CP(angle_probabilities,matching_points_fractions);
+%     predicted_characters_indices = [predicted_characters_indices find(strcmp(character_list,character),1,'first')];
+%     
+%     data = [];
+%     data.angle_probabilities = angle_probabilities;
+%     data.matching_point_fractions = matching_points_fractions;
+%     data.matching_point_probabilities = posterior_CP_matching;
+%     data.pscore = pscore;
+%     data.characters = character_list;
+%     savefilename = strrep(filename,'.mat_phase_comp.mat','feature.mat');
+%     save(savefilename,'data');
+%     disp(['<strong>The gesture shape is: ',character,'</strong>!']);
+%     close all;
 end
-groundTruth_characters = character_list(groundTruth_characters_indices);
-predicted_characters = character_list(predicted_characters_indices);
-figure;
-cm = confusionchart(groundTruth_characters,predicted_characters);
-figure;
-cm_indices = confusionchart(groundTruth_characters_indices,predicted_characters_indices,...
-    'Normalization','row-normalized');
+% groundTruth_characters = character_list(groundTruth_characters_indices);
+% predicted_characters = character_list(predicted_characters_indices);
+% figure;
+% cm = confusionchart(groundTruth_characters,predicted_characters);
+% figure;
+% cm_indices = confusionchart(groundTruth_characters_indices,predicted_characters_indices,...
+%     'Normalization','row-normalized');
 
 

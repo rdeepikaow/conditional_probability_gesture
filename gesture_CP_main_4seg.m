@@ -17,7 +17,7 @@ params_gesture_construction.similarity_method = 'trrs'; %'trrs','correlation_pha
 params_angle_estimation.peak_detection_window = 100;
 params_angle_estimation.peak_tracking_max_queue = 50;
 params_angle_estimation.peak_tracking_max_jump = 100;
-params_angle_estimation.debug = 0;
+params_angle_estimation.debug = 1;
 params_angle_estimation.sf = params_gesture_construction.sf;
 
 if (strcmp(params_gesture_construction.similarity_method,'trrs'))
@@ -35,13 +35,13 @@ params_gesture_segmentation.min_segment_duration = 0.3; %sec
 params_gesture_segmentation.local_peak_win = 96;
 params_gesture_segmentation.debug = 0;
 
-direc = dir(fullfile('C:\Users\origin\Desktop\Gesture5GHzDemo\GestureWNC\10172020_50samples_3segments\','*Bshape*_NLOS_*_1.mat_phase_comp.mat'));
+direc = dir(fullfile('D:\WiCode\10172020_50samples_3segments\','*Tshape*_NLOS_*_1.mat_phase_comp.mat'));
 accuracy_total = 0;
 accuracy_correct = 0;
 predicted_characters_indices = [];
 groundTruth_characters_indices = [];
 character_list = {'A','O','R','J','M'};
-for ff = 1
+for ff = 11
     filename = strcat(direc(ff).folder,'/',direc(ff).name);
     matfilename = filename;
     if contains(filename,'phase_comp.mat')
@@ -63,7 +63,7 @@ for ff = 1
     segments_stop = segment_gesture.segments_stop_;
     num_segments = segment_gesture.num_segments_;
     disp(['Number of segments: ',num2str(num_segments)]);
-    if (num_segments~=3)
+    if (num_segments~=4)
         continue;
     end
     groundTruth_characters_indices = [groundTruth_characters_indices find(strcmp(extractedGT{1},character_list),1)];
@@ -262,19 +262,21 @@ for ff = 1
         end
     end
     if (debug)
-        disp(['Matching points: ',num2str(matching_points_fractions)]);
+        disp(['Matching points: ']);
+        disp(num2str(matching_points_fractions));
     end
-    character = gesture_classification_CP(angle_probabilities,matching_points_fractions);
+    character = gesture_classification_CP_4seg(angle_probabilities,matching_points_fractions);
     predicted_characters_indices = [predicted_characters_indices find(strcmp(character_list,character),1,'first')];
     
     disp(['<strong>The gesture shape is: ',character,'</strong>!']);
-    close all;
+%     close all;
 end
 groundTruth_characters = character_list(groundTruth_characters_indices);
 predicted_characters = character_list(predicted_characters_indices);
-figure;
-cm = confusionchart(groundTruth_characters,predicted_characters);
-figure;
-cm_indices = confusionchart(groundTruth_characters_indices,predicted_characters_indices);
+% figure;
+% cm = confusionchart(groundTruth_characters,predicted_characters);
+% figure;
+% cm_indices = confusionchart(groundTruth_characters_indices,predicted_characters_indices,...
+%     'Normalization','row-normalized');
 
 
