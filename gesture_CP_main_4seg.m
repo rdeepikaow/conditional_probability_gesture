@@ -9,7 +9,7 @@ params_gesture_construction.sf = 4; % Sampling factor
 params_gesture_construction.display_min = 0.95; % caxis min for display
 params_gesture_construction.outlier_removal_offset = 1; % lag in samples outlier removal
 params_gesture_construction.outlier_removal_th = 0.97; % Similarity th for outlier removal
-params_gesture_construction.debug = 0;
+params_gesture_construction.debug = 1;
 params_gesture_construction.crop_index = -1; % Index at which CSI time series is cropped
 params_gesture_construction.num_useful_subcarriers = 248; % Applicable for MRC and correlation
 params_gesture_construction.similarity_method = 'trrs'; %'trrs','correlation_phaseboost','correlation'
@@ -36,6 +36,7 @@ params_gesture_segmentation.local_peak_win = 96;
 params_gesture_segmentation.debug = 0;
 
 direc = dir(fullfile('D:\WiCode\10172020_50samples_3segments\','*Tshape*_NLOS_*_1.mat_phase_comp.mat'));
+direc = dir(fullfile('D:\WiCode\*10172020*\','*Yshape_loc6_set3_NLOS_3*.mat_phase_comp.mat'));
 accuracy_total = 0;
 accuracy_correct = 0;
 predicted_characters_indices = [];
@@ -48,7 +49,6 @@ for ff = 11
         matfilename = strrep(filename,'_phase_comp.mat','');
     end
     extractedGT = extractBetween(filename,'/','shape');
-    
     disp(['Processing: ', direc(ff).name]);
     params_gesture_construction.matfilename = matfilename;
     params_gesture_construction.filename = filename;
@@ -266,8 +266,17 @@ for ff = 11
         disp(num2str(matching_points_fractions));
     end
     character = gesture_classification_CP_4seg(angle_probabilities,matching_points_fractions);
+    [character,pscore,posterior_CP_matching] = gesture_classification_CP(angle_probabilities,matching_points_fractions);
     predicted_characters_indices = [predicted_characters_indices find(strcmp(character_list,character),1,'first')];
     
+    data = [];
+    data.angle_probabilities = angle_probabilities;
+    data.matching_point_fractions = matching_points_fractions;
+    data.matching_point_probabilities = posterior_CP_matching;
+    data.pscore = pscore;
+    data.characters = character_list;
+    savefilename = strrep(filename,'.mat_phase_comp.mat','feature.mat');
+    save(savefilename,'data');
     disp(['<strong>The gesture shape is: ',character,'</strong>!']);
 %     close all;
 end
@@ -278,5 +287,10 @@ predicted_characters = character_list(predicted_characters_indices);
 % figure;
 % cm_indices = confusionchart(groundTruth_characters_indices,predicted_characters_indices,...
 %     'Normalization','row-normalized');
+figure;
+cm = confusionchart(groundTruth_characters,predicted_characters);
+figure;
+cm_indices = confusionchart(groundTruth_characters_indices,predicted_characters_indices,...
+    'Normalization','row-normalized');
 
 

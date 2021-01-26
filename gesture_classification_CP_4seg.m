@@ -1,4 +1,4 @@
-function character = gesture_classification_CP_4seg(angle_probabilities,matching_points_fractions)
+function [character,probability_score,posterior_CP_matching] = gesture_classification_CP_4seg(angle_probabilities,matching_points_fractions)
 % Code to read prior probabilities from excel sheet
 excel_filename = 'prior_probabilities.xlsx';
 excel_sheetname = 'AnglePrior4';
@@ -16,7 +16,7 @@ for i = 1:5
     prior_CP_probabilities_angles(i,3) = angle_probabilities(1,1)*angle_probabilities(2,2)*angle_probabilities(1,3);
     prior_CP_probabilities_angles(i,4) = angle_probabilities(1,1)*angle_probabilities(2,2)*angle_probabilities(2,3);
     prior_CP_probabilities_angles(i,5) = angle_probabilities(2,1)*angle_probabilities(1,2)*angle_probabilities(1,3);
-    prior_CP_probabilities_angles(i,5) = angle_probabilities(2,1)*angle_probabilities(1,2)*angle_probabilities(2,3);
+    prior_CP_probabilities_angles(i,6) = angle_probabilities(2,1)*angle_probabilities(1,2)*angle_probabilities(2,3);
     prior_CP_probabilities_angles(i,7) = angle_probabilities(2,1)*angle_probabilities(2,2)*angle_probabilities(1,3);
     prior_CP_probabilities_angles(i,8) = angle_probabilities(2,1)*angle_probabilities(2,2)*angle_probabilities(2,3);
 end
@@ -24,7 +24,9 @@ end
 % Convert matching point probabilities 
 posterior_CP_matching = zeros(1,5);
 for c = 1:5
-    posterior_CP_matching(c) = 1- (sin(pi/2*abs(matching_points_fractions(1)-prior_CP_matching(c,1)))+sin(pi/2*abs(matching_points_fractions(2)-prior_CP_matching(c,2))))/2;
+    posterior_CP_matching(c) = 1- ((MP_function(abs(matching_points_fractions(1)-prior_CP_matching(c,1)))+MP_function(abs(matching_points_fractions(2)-prior_CP_matching(c,2))))/2+...
+        +(MP_function(abs(matching_points_fractions(3)-prior_CP_matching(c,3)))+MP_function(abs(matching_points_fractions(4)-prior_CP_matching(c,4))))/2+...
+        (MP_function(abs(matching_points_fractions(5)-prior_CP_matching(c,5)))+MP_function(abs(matching_points_fractions(6)-prior_CP_matching(c,6))))/2)/3;
 end
 posterior_CP_matching = posterior_CP_matching./sum(posterior_CP_matching);
 probability_score = zeros(1,5);
@@ -38,7 +40,7 @@ disp(['Probability scores: ',num2str(probability_score)]);
 [~,max_ind] = max(probability_score);
 character_list = {'A','O','R','J','M'};
 character = character_list{max_ind};
-% disp(['Character: ',character]);
+disp(['Character: ',character]);
 end
 
 

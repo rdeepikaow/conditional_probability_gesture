@@ -49,7 +49,6 @@ for ff = 24
         matfilename = strrep(filename,'_phase_comp.mat','');
     end
     extractedGT = extractBetween(filename,'/','shape');
-    
     disp(['Processing: ', direc(ff).name]);
     params_gesture_construction.matfilename = matfilename;
     params_gesture_construction.filename = filename;
