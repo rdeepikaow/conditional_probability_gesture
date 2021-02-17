@@ -131,6 +131,15 @@ classdef SegmentGesture
                 obj.segments_start_(i) = abs(obj.peaks_(1,segment_peaks(i)-1));
                 obj.segments_stop_(i) = abs(obj.peaks_(1,segment_peaks(i)+1));
             end
+            %% Modification to remove the silent periods
+            for i = 1:obj.num_segments_
+                if smoothed_ms(obj.segments_start_(i))<0 
+                    obj.segments_start_(i) = obj.segments_start_(i)-1+ find(smoothed_ms(obj.segments_start_(i):end)>0,1,'first');
+                end
+                if smoothed_ms(obj.segments_stop_(i))<0
+                    obj.segments_stop_(i) = find(smoothed_ms(1:obj.segments_stop_(i))>0,1,'last');
+                end
+            end
             silent_locations = [obj.segments_start_ obj.segments_stop_(end)];
             if (obj.debug_)
                 plot(silent_locations,smoothed_ms(silent_locations),'bp','MarkerSize',10); hold on;grid on;

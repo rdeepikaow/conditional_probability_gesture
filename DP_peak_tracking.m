@@ -121,6 +121,38 @@ fraction_of_segment1 = 1- sum(motion_stats(1:peak_trace_end_point))/sum(motion_s
 
 fraction_of_segment = max(fraction_of_segment1,fraction_of_segment2);
 
+%% If tracked peak location does not increase, then discard
+discard_indices = find(isnan(peaks_tracked_continuous));
+peaks_tracked_continuous_bak = peaks_tracked_continuous;
+peaks_tracked_continuous(discard_indices) = [];
+N = 30;
+difference_peaks_location = sign(-diff(peaks_tracked_continuous));
+difference_peaks_location(isnan(difference_peaks_location)) = 0;
+past_N_sum = movsum(difference_peaks_location,N);
+[~,max_val_loc] = max(past_N_sum(:));
+
+crop_index = find(past_N_sum(max_val_loc+1:end)<0,1,'first')+max_val_loc;
+if (isempty(crop_index))
+    crop_index = length(peaks_tracked_continuous);
+end
+if crop_index==1
+    first_index = find(past_N_sum>0,1,'first');
+    difference_peaks_location = sign(-diff(peaks_tracked_continuous(first_index:end)));
+    past_N_sum = movsum(difference_peaks_location,N);
+    crop_index = find(past_N_sum<=0,1,'first') + first_index-1;
+    if (isempty(crop_index))
+        crop_index = length(peaks_tracked_continuous);
+    end
+end
+
+first_after_crop_discard_set = find(discard_indices<crop_index,1,'last');
+if (isempty(first_after_crop_discard_set))
+    first_after_crop_discard_set = 1;
+end
+crop_index = crop_index +  first_after_crop_discard_set-1;
+
+peaks_tracked_continuous = peaks_tracked_continuous_bak;
+peaks_tracked_continuous = peaks_tracked_continuous(1:crop_index);
 peaks_tracked_final = nan(size(peaks_tracked_continuous));
 peaks_tracked_final(peaks_tracked_continuous>=5) = peaks_bak(peaks_tracked_continuous>=5);
 

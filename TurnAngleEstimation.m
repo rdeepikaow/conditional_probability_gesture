@@ -125,11 +125,12 @@ classdef TurnAngleEstimation
         end
         
         
-        function obj = peak_valley_similarity_backward(obj,start_index,stop_index,turn_index,cummulative_ms)
+        function obj = peak_valley_similarity_backward(obj,start_index,stop_index,turn_index,cummulative_ms,first_segment_stop_index)
             obj.motion_index_ = cummulative_ms;
             obj.start_index_ = start_index;
             obj.stop_index_ = stop_index;
             obj.turn_index_ = turn_index;
+            first_segment_stop_index = first_segment_stop_index - start_index +1 ;
             similarity_matrix = obj.similarity_matrix_smoothed_(start_index:stop_index,start_index:stop_index);
             N = size(similarity_matrix,1);
             potential_peaks = cell(1,N-turn_index+1);
@@ -143,18 +144,15 @@ classdef TurnAngleEstimation
             peak_valley_val = zeros(1,N);
             
             for i = turn_index:N
-                if (i==1310)
-                    temp = 1;
-                end
 %                 peak_loc_max = min(max(ceil(2*(i-turn_index)),1),turn_index-1);
-                vector = similarity_matrix(turn_index:-1:1,i);
+                vector = similarity_matrix(first_segment_stop_index:-1:1,i);
 %                 vector = smooth(vector,0.3,'rloess');
                 [potential_peaks{i},potential_peaks_significances{i},potential_valleys{i}] = obj.peakAnalysis(vector);
                 array_peaks = potential_peaks{i};
                 if (~isempty(array_peaks))
                     [peak_val(i),max_loc] = max(array_peaks(:,2));
                     peak_significance(i) = potential_peaks_significances{i}(max_loc);
-                    peak_loc(i) = turn_index-array_peaks(max_loc,1)+1;%-turn_index);
+                    peak_loc(i) = first_segment_stop_index-array_peaks(max_loc,1)+1;%-turn_index);
                     %%%%%% If peak is not detected near the turn,ignore%%%
 %                     if 2*abs(i-turn_index)<(turn_index-peak_loc(i))
 %                         peak_loc(i) = 0;
@@ -172,10 +170,10 @@ classdef TurnAngleEstimation
                     
                     [valley_val(i),valley_loc(i)] = min(similarity_matrix(i:-1:peak_loc(i),i));
                     %% New addition:
-                    valley_loc(i) = obj.turn_index_;
+                    valley_loc(i) = first_segment_stop_index;
                     [peak_val(i),peak_loc(i)] = max(vector);
-                    peak_loc(i) = turn_index-peak_loc(i)+1;
-                    valley_val(i) = similarity_matrix(obj.turn_index_,i);
+                    peak_loc(i) = first_segment_stop_index-peak_loc(i)+1;
+                    valley_val(i) = similarity_matrix(first_segment_stop_index,i);
                     %valley_loc(i) = i-valley_loc(i)+1;%-turn_index);
                     peak_valley_val(i) = similarity_matrix(peak_loc(i),valley_loc(i));
 %                     if (turn_index-peak_loc(i)<i-turn_index+50)
