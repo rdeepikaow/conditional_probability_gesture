@@ -1,37 +1,46 @@
-function [character,probability_score,posterior_CP_matching] = gesture_classification_CP(angle_probabilities,matching_points_fractions)
+function [character,character_probabilities] = gesture_classification_CP(angle_probabilities,matching_points_fractions,max_TRRS,min_TRRS)
 % Code to read prior probabilities from excel sheet
 excel_filename = 'prior_probabilities.xlsx';
-excel_sheetname = 'AnglePrior';
-[num,txt,raw] = xlsread(excel_filename,excel_sheetname);
+excel_sheetname = '3segment';
+[num,txt,~] = xlsread(excel_filename,excel_sheetname);
 prior_CP_angles = num;
-excel_sheetname = 'MPrior';
-[num,txt,raw] = xlsread(excel_filename,excel_sheetname);
-prior_CP_matching = num(:,1:2);
 
-% Convert each angle probabilities into two angle probabilities
-prior_CP_probabilities_angles = zeros(6,4);
-for i = 1:6
-    prior_CP_probabilities_angles(i,1) = angle_probabilities(1,1)*angle_probabilities(1,2);
-    prior_CP_probabilities_angles(i,2) = angle_probabilities(1,1)*angle_probabilities(2,2);
-    prior_CP_probabilities_angles(i,3) = angle_probabilities(2,1)*angle_probabilities(1,2);
-    prior_CP_probabilities_angles(i,4) = angle_probabilities(2,1)*angle_probabilities(2,2);    
+% modify angle probabilities to add acute and obtuse angles
+angle_probabilities(2,:) = angle_probabilities(2,:)+ angle_probabilities(3,:);
+angle_probabilities(3,:) = [];
+nC = size(num,1);
+character_probabilities = zeros(nC,1);
+for ii = 1:nC
+    character_probabilities(ii) = angle_probabilities(num(ii,1),1)*angle_probabilities(num(ii,2),2);
 end
 
-% Convert matching point probabilities 
-posterior_CP_matching = zeros(1,6);
-for c = 1:6
-    posterior_CP_matching(c) = 1- (MP_function(abs(matching_points_fractions(1)-prior_CP_matching(c,1)))+MP_function(abs(matching_points_fractions(2)-prior_CP_matching(c,2))))/2;
-end
-posterior_CP_matching = posterior_CP_matching./sum(posterior_CP_matching);
-probability_score = zeros(1,6);
-for c = 1:size(probability_score,2)
-    probability_score(c) = sum(prior_CP_probabilities_angles(c,:).*prior_CP_angles(c,:));
-    probability_score(c) = probability_score(c).*posterior_CP_matching(c);
+% matching point probabilities
+MP_probability = (max_TRRS- min_TRRS)/(1-min_TRRS);
+% Matching point indicator functions
+MP_character_probability = zeros(1,nC);
+for ii = 1:nC
+    text = txt(1+ii,4);
+    class_MP1 = str2num(text{1}(2));
+    class_MP2 = str2num(text{1}(4));
+    if (isempty(class_MP1))
+        MP_character_probability(ii) = 1- MP_probability;
+    else
+        if (matching_points_fractions(1)<class_MP1+0.25 && matching_points_fractions(1)>class_MP1-0.25 && ...
+                matching_points_fractions(2)<class_MP2+0.25 && matching_points_fractions(2)>class_MP2-0.25)
+            MP_character_probability(ii) = MP_probability;
+        end
+    end
 end
 
-probability_score = probability_score./sum(probability_score);
-disp(['Probability scores: ',num2str(probability_score)]);
-[~,max_ind] = max(probability_score);
+% Total character probability
+for ii = 1:nC
+    character_probabilities(ii) = character_probabilities(ii)*MP_character_probability(ii);
+end
+
+character_probabilities = character_probabilities./sum(character_probabilities);
+
+disp(['Probability scores: ',num2str(character_probabilities')]);
+[~,max_ind] = max(character_probabilities);
 character_list = {'D','P','T','X','Y','Z'};
 character = character_list{max_ind};
 % disp(['Character: ',character]);

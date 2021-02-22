@@ -125,13 +125,10 @@ classdef TurnAngleEstimation
         end
         
         
-        function obj = peak_valley_similarity_backward(obj,start_index,stop_index,turn_index,cummulative_ms,first_segment_stop_index)
+        function obj = peak_valley_similarity_backward(obj,turn_index,cummulative_ms,first_segment_stop_index)
             obj.motion_index_ = cummulative_ms;
-            obj.start_index_ = start_index;
-            obj.stop_index_ = stop_index;
             obj.turn_index_ = turn_index;
-            first_segment_stop_index = first_segment_stop_index - start_index +1 ;
-            similarity_matrix = obj.similarity_matrix_smoothed_(start_index:stop_index,start_index:stop_index);
+            similarity_matrix = obj.similarity_matrix_smoothed_;
             N = size(similarity_matrix,1);
             potential_peaks = cell(1,N-turn_index+1);
             potential_peaks_significances = cell(1,N-turn_index+1);

@@ -9,7 +9,7 @@ debug = 1;
 params_gesture_construction.sf = 4; % Sampling factor
 params_gesture_construction.display_min = 0.95; % caxis min for display
 params_gesture_construction.outlier_removal_offset = 1; % lag in samples outlier removal
-params_gesture_construction.outlier_removal_th = 0.97; % Similarity th for outlier removal
+params_gesture_construction.outlier_removal_th = 0.8; % Similarity th for outlier removal
 params_gesture_construction.debug = 1;
 params_gesture_construction.crop_index = -1; % Index at which CSI time series is cropped
 params_gesture_construction.num_useful_subcarriers = 248; % Applicable for MRC and correlation
@@ -36,16 +36,21 @@ params_gesture_segmentation.min_segment_duration = 0.3; %sec
 params_gesture_segmentation.local_peak_win = 96;
 params_gesture_segmentation.debug = 1;
 
-direc = dir(fullfile('D:\WiCode\10172020_50samples_3segments\','*Tshape*NLOS*.mat_phase_comp.mat'));
+direc = dir(fullfile('E:\deepika\WiCode\angle_classification_entire_dataset\zero_angle\10172020','*Tshape*NLOS*.mat_phase_comp.mat'));
 accuracy_total = 0;
 accuracy_correct = 0;
 predicted_characters_indices = [];
 groundTruth_characters_indices = [];
 character_list = {'D','P','T','X','Y','Z'};
 
-area_ratio_list = cell(1,3);
-peaks_detected_length_list = cell(1,3);
-for ff = 4
+%% Angle classification parameters
+fmax_higher = 0.6;
+fmax_lower = 0.2;
+delta = 0;
+
+area_ratio_list = [];
+peaks_detected_length_list = [];
+for ff = 12
     filename = strcat(direc(ff).folder,'/',direc(ff).name);
     matfilename = filename;
     if contains(filename,'phase_comp.mat')
@@ -66,9 +71,13 @@ for ff = 4
     segments_stop = segment_gesture.segments_stop_;
     num_segments = segment_gesture.num_segments_;
     disp(['Number of segments: ',num2str(num_segments)]);
-    %     if (num_segments~=3)
-    %         continue;
-    %     end
+
+    if (contains(direc(ff).name,'90'))
+        if (num_segments~=2)
+            continue;
+        end
+    end
+
     %     groundTruth_characters_indices = [groundTruth_characters_indices find(strcmp(extractedGT{1},character_list),1)];
     
     accuracy_total = accuracy_total + 1;
@@ -81,28 +90,31 @@ for ff = 4
     peak_value = cell(1,num_segments-1);
     peak_valley_value = cell(1,num_segments-1);
     final_turn_angles = zeros(1,num_segments-1);
-    
-    mp_analysis_data = [];
-    mp_analysis_data.filename = filename;
-    mp_analysis_data.start_point = segments_start;
-    mp_analysis_data.stop_point = segments_stop;
-    mp_analysis_data.trrs = smatrix;
-    mp_analysis_data.motion_statistics = motion_statistics;
-    savefilename = strcat('figure_data/',direc(ff).name,'_mp_data.mat');
-    save(savefilename,'mp_analysis_data');
-    
+
     angle_indices = 1:num_segments-1;
     angle_probabilities = zeros(2,num_segments-1);%0=> zero, 1=> acute, 2=> obtuse
+    %% Temporary addition to select angles with 180 deg turn
     for a = angle_indices
+        segment2_shorter_flag = 0;
+        segment1_ms = smoothed_ms(segments_start(a):segments_stop(a));
+        segment2_ms = smoothed_ms(segments_start(a+1):segments_stop(a+1));
+        segment1_ms(segment1_ms<0) = 0;
+        segment2_ms(segment2_ms<0) = 0;
+        segment1_length = sum(segment1_ms);
+        segment2_length = sum(segment2_ms);
+        if segment2_length*1.2<segment1_length % then swap the two segments
+            segment2_shorter_flag = 1;
+        end
         start_index = segments_start(a);
         stop_index = segments_stop(a+1)-1;
         turn_index = segments_start(a+1)-segments_start(a)+1; % relative
         motion_index = segment_gesture.motion_index_smoothed_;
         cummulative_ms = (smoothed_ms(start_index:stop_index));
-        first_segment_stop_index = segments_stop(a);
-        %turn_angle = turn_angle.quick_turn_angle_estimation(start_index,stop_index,turn_index,cummulative_ms);
-        
-        turn_angle = turn_angle.peak_valley_similarity_backward(start_index,stop_index,turn_index,cummulative_ms,first_segment_stop_index);
+        first_segment_stop_index = segments_stop(a)-start_index+1;
+        temp_smatrix = smatrix(start_index:stop_index,start_index:stop_index);
+
+        turn_angle.similarity_matrix_smoothed_ = temp_smatrix;
+        turn_angle = turn_angle.peak_valley_similarity_backward(turn_index,cummulative_ms,first_segment_stop_index);
         tracked_peaks_backward = turn_angle.tracked_peak_trace_backward_;
         
         [~,outliers] = hampel(1:length(tracked_peaks_backward),tracked_peaks_backward,30);
@@ -116,26 +128,11 @@ for ff = 4
         
         if (debug)
             figure;
-            imagesc(smatrix(start_index:stop_index,start_index:stop_index)); colorbar; hold on;grid on;caxis([y_upper_limit 1]);
+            imagesc(temp_smatrix); colorbar; hold on;grid on;caxis([y_upper_limit 1]);
             plot((1:length(tracked_peaks_backward))+turn_index-1,tracked_peaks_backward,'b*'); hold on;grid on;
             title_name = strrep(direc(ff).name,'_','-');
             title(title_name);
             saveas(gca,strcat(direc(ff).folder,'/',title_name,'_tracked.png'));
-            %             deg180_matrix = smatrix(start_index+400:start_index+1300,start_index+400:start_index+1300);
-            %             deg180_vector = deg180_matrix(700,700:-1:1);
-            %             deg180_vector_smooth = smooth(deg180_vector,0.3,'rloess');
-            deg180_matrix = smatrix(start_index:stop_index,start_index:stop_index);
-            deg180_vector = deg180_matrix(578,578:-1:1);
-            deg180_vector_smooth = smooth(deg180_vector,0.3,'rloess');
-            figure;
-            imagesc(deg180_matrix);colorbar; caxis([0.9 1]);
-            xlabel('CSI sample index'); ylabel('CSI sample index');
-            ax = gca; ax.FontSize = 12;
-            figure;
-            plot(deg180_vector); hold on;grid on;
-            plot(deg180_vector_smooth,'k--','LineWidth',2); hold on;grid on;
-            legend('Raw TRRS','Smoothened TRRS');
-            ax  = gca; ax.FontSize = 12;
         end
         %%%%%%%%%%%%%%%% Features for turn angle classification %%%%%%%%%%%%%%%%%%%
         % ST -> Sample to Valley
@@ -178,15 +175,6 @@ for ff = 4
             title('Peak significance');
         end
         
-        %%%%%%%%%%%%%% temp fig gen addition %%%%%%%%%%%%%%
-%                 ST = ST(124:end);
-%                 SP = SP(124:end);
-%                 PT = PT(124:end);
-        %         ST = ST(1:100);
-        %         SP = SP(1:100);
-        %         PT = PT(1:100);
-        %%%%%%%%%%%%%% temp fig gen addition %%%%%%%%%%%%%%
-        
         %% Raw feature processing
         ST = hampel(1:length(ST),ST,5);
         SP = hampel(1:length(SP),SP,5);
@@ -210,8 +198,7 @@ for ff = 4
         SP = movmean(SP,20);
         PT = movmean(PT,20);
         
-        
-        upper_bound = (SP(find(SP>0.9,1,'first')));
+        upper_bound = max(SP(find(SP>0.9)));
         difference_ST = upper_bound-ST(ST~=0);
         difference_ST(difference_ST<0) = 0;
         
@@ -228,7 +215,21 @@ for ff = 4
         if (fraction_area==0)
             fraction_area = 2;% Any value greater than 1.
         end
-        peaks_detected_fraction = PT_last_nz_index/(stop_index-start_index-turn_index+2);
+        % Segment length defined with motion statistics
+        if (isnan(min(tracked_peaks_backward(:))))
+            area_ratio_list = [area_ratio_list 10];
+            peaks_detected_length_list = [peaks_detected_length_list 0];
+            angle_probabilities(3,a) = 1;
+            continue;
+        end
+        peaks_detected_fraction2 = sum(segment2_ms(1:PT_last_nz_index))/segment2_length;
+        peaks_detected_fraction1 = 1-sum(segment1_ms(1:min(tracked_peaks_backward(:))))/segment1_length;
+        if segment2_shorter_flag
+            peaks_detected_fraction = peaks_detected_fraction2;
+            segment2_shorted_flag = 0;
+        else
+            peaks_detected_fraction = peaks_detected_fraction1;
+        end
         if (debug)
             figure;
             constant_y = upper_bound.*ones(1,length(SP));
@@ -238,7 +239,7 @@ for ff = 4
             x = [1:length(SP) ,length(SP):-1:1];
             yy = [SP',constant_y];
             fill(x,yy,[0.00,0.60,1.00],'FaceAlpha',0.5) ; hold on;grid on;
-%             fill([1:47 47:-1:1],[SP(1:47)',upper_bound.*ones(1,47)],'w','FaceAlpha',1) ; hold on;grid on;
+            %             fill([1:47 47:-1:1],[SP(1:47)',upper_bound.*ones(1,47)],'w','FaceAlpha',1) ; hold on;grid on;
             yy1 = [PT',constant_y];
             for v = 1:10:length(SP)
                 plot([v,v],[constant_y(1),PT(v)],'k-');hold on;grid on;
@@ -248,37 +249,37 @@ for ff = 4
             ylabel('TRRS');
             ax = gca;
             ax.FontSize = 12;
-            xlim([1 length(SP)]);
         end
-        %         peaks_detected_fraction = (nnz(PT)+PV_first_nz_index)/(stop_index-start_index-turn_index);
-        %         if (debug)
+
         disp(['area ratio: ', num2str(fraction_area)]);
         disp(['peaks detected length: ',num2str(peaks_detected_fraction)]);
-        
-        if (contains(direc(ff).name,'180')==1)
-            area_ratio_list{1} = [area_ratio_list{1} fraction_area];
-            peaks_detected_length_list{1} = [peaks_detected_length_list{1} peaks_detected_fraction];
+        area_ratio_list = [area_ratio_list fraction_area];
+        peaks_detected_length_list = [peaks_detected_length_list peaks_detected_fraction];
+        %% Assign probabilities for the turn angles
+        f = peaks_detected_fraction;
+        r = fraction_area;
+        if (peaks_detected_fraction>0.7)
+            [Pzero,Pacute] = gamma_angle_probability(fraction_area);
+            Pobtuse = 0;
+        else
+            Pzero = 0;
+            if (peaks_detected_fraction>0.2)
+                Pacute = 1;
+                Pobtuse = 0;
+            else
+                Pacute = 0;
+                Pobtuse = 1;
+            end
         end
-        if (contains(direc(ff).name,'acute')==1)
-            area_ratio_list{2} = [area_ratio_list{2} fraction_area];
-            peaks_detected_length_list{2} = [peaks_detected_length_list{2} peaks_detected_fraction];
-        end
-        if (contains(direc(ff).name,'90')==1)
-            area_ratio_list{3} = [area_ratio_list{3} fraction_area];
-            peaks_detected_length_list{3} = [peaks_detected_length_list{3} peaks_detected_fraction];
-        end
-        P_angle_zero = (1-min(1,fraction_area))*peaks_detected_fraction;
-        P_angle_acute = min(1,fraction_area);
-        %         P_angle_obtuse = (1-peaks_detected_fraction)*min(1,fraction_area);
-        angle_probabilities(1,a) = P_angle_zero;
-        angle_probabilities(2,a) = P_angle_acute;
-        %         angle_probabilities(3,a) = P_angle_obtuse;
+        angle_probabilities(1,a) = Pzero;
+        angle_probabilities(2,a) = Pacute;
+        angle_probabilities(3,a) = Pobtuse;
         angle_probabilities(:,a) = angle_probabilities(:,a)./sum(angle_probabilities(:,a));
-        [max_probability,max_ind] = max([P_angle_zero,P_angle_acute]);
+        [max_probability,max_ind] = max([Pzero,Pacute,Pobtuse]);
         if (debug)
             disp(['P(a=0) :',num2str(angle_probabilities(1,a))]);
             disp(['P(a=acute) :',num2str(angle_probabilities(2,a))]);
-            %             disp(['P(a=obtuse) :',num2str(angle_probabilities(3,a))]);
+            disp(['P(a=obtuse) :',num2str(angle_probabilities(3,a))]);
         end
         if (debug)
             switch max_ind
@@ -294,75 +295,68 @@ for ff = 4
     
     %% Matching point determination
     
-    switch num_segments
-        case 3
-            matching_points_fractions = nan(1,2);
-        case 4
-            matching_points_fractions = nan(3,2);
-        case 5
-            matching_points_fractions = nan(6,2);
-    end
-    if (num_segments>2)
-        counter = 0;
-        for i = 1:num_segments-2
-            for j = i+2:num_segments
-                counter = counter + 1;
-                matching_point_matrix = smatrix(segments_start(i):segments_stop(i),segments_start(j):segments_stop(j));
-                if (debug)
-                    figure; imagesc(matching_point_matrix);colorbar;colormap jet;caxis([y_upper_limit 1]);
+     switch num_segments
+            case 3
+                matching_points_fractions = nan(1,2);
+            case 4
+                matching_points_fractions = nan(3,2);
+            case 5
+                matching_points_fractions = nan(6,2);
+        end
+        if (num_segments>2)
+            counter = 0;
+            for i = 1:num_segments-2
+                for j = i+2:num_segments
+                    counter = counter + 1;
+                    matching_point_matrix = smatrix(segments_start(i):segments_start(i+1),segments_start(j):segments_stop(j));
+                    if (debug)
+                        figure; imagesc(matching_point_matrix);colorbar;colormap jet;caxis([y_upper_limit 1]);
+                    end
+                    [max_val,max_loc]= max(matching_point_matrix(:));
+                    [max_loc_row,max_loc_col]=ind2sub(size(matching_point_matrix),max_loc);
+                    % Check if it a real peak
+                    row_vector = matching_point_matrix(max_loc_row,1:end);
+                    row_vector = hampel(1:length(row_vector),row_vector,5);
+                    row_vector_smooth = smooth(row_vector,0.2,'rloess');
+                    col_vector = matching_point_matrix(1:end,max_loc_col);
+                    col_vector = hampel(1:length(col_vector),col_vector,5);
+                    col_vector_smooth = smooth(col_vector,0.2,'rloess');
+                    peaks_row = peaks_matching_point(row_vector_smooth);
+                    peaks_col = peaks_matching_point(col_vector_smooth);
+                    
+                    min_val_TRRS = min([col_vector' row_vector']);
+    
+                    if (isempty(peaks_row) || isempty(peaks_col))
+                        continue;
+                    end
+                    peaks_row = sort(peaks_row(1,:),'descend');
+                    peaks_col = sort(peaks_col(1,:),'descend');
+    
+                    matching_point_estimate = 0;
+                    if (debug)
+                        figure; subplot(2,1,1);
+                        plot(row_vector_smooth); hold on;grid on;
+                        subplot(2,1,2);
+                        plot(col_vector_smooth); hold on;grid on;
+                    end
+                    segment_one_ms = smoothed_ms(segments_start(1):segments_stop(1));
+                    segment_three_ms = smoothed_ms(segments_start(3):segments_stop(3));
+                    segment_one_ms(segment_one_ms<0) = 0;
+                    segment_three_ms(segment_three_ms<0)= 0 ;
+                    segment_one_fraction = sum(segment_one_ms(1:max_loc_row))/sum(segment_one_ms);
+                    segment_three_fraction = sum(segment_three_ms(1:max_loc_col))/sum(segment_three_ms);
+                    matching_points_fractions(counter,1) = segment_one_fraction;
+                    matching_points_fractions(counter,2) = segment_three_fraction;
                 end
-                [max_val,max_loc]= max(matching_point_matrix(:));
-                [max_loc_row,max_loc_col]=ind2sub(size(matching_point_matrix),max_loc);
-                % Check if it a real peak
-                row_vector = matching_point_matrix(max_loc_row,1:end);
-                row_vector = hampel(1:length(row_vector),row_vector,5);
-                row_vector_smooth = smooth(row_vector,0.2,'rloess');
-                col_vector = matching_point_matrix(1:end,max_loc_col);
-                col_vector = hampel(1:length(col_vector),col_vector,5);
-                col_vector_smooth = smooth(col_vector,0.2,'rloess');
-                peaks_row = peaks_matching_point(row_vector_smooth);
-                peaks_col = peaks_matching_point(col_vector_smooth);
-                
-                if (isempty(peaks_row) || isempty(peaks_col))
-                    continue;
-                end
-                peaks_row = sort(peaks_row(1,:),'descend');
-                peaks_col = sort(peaks_col(1,:),'descend');
-                
-                matching_point_estimate = 0;
-                if (debug)
-                    figure; subplot(2,1,1);
-                    plot(row_vector_smooth); hold on;grid on;
-                    subplot(2,1,2);
-                    plot(col_vector_smooth); hold on;grid on;
-                end
-                segment_one_ms = smoothed_ms(segments_start(1):segments_stop(1));
-                segment_three_ms = smoothed_ms(segments_start(3):segments_stop(3));
-                segment_one_ms(segment_one_ms<0) = 0;
-                segment_three_ms(segment_three_ms<0)= 0 ;
-                segment_one_fraction = sum(segment_one_ms(1:max_loc_row))/sum(segment_one_ms);
-                segment_three_fraction = sum(segment_three_ms(1:max_loc_col))/sum(segment_three_ms);
-                matching_points_fractions(counter,1) = segment_one_fraction;
-                matching_points_fractions(counter,2) = segment_three_fraction;
             end
         end
-    end
-    %     if (debug)
-    %         disp(['Matching points: ',num2str(matching_points_fractions)]);
-    %     end
-    %     [character,pscore,posterior_CP_matching] = gesture_classification_CP(angle_probabilities,matching_points_fractions);
-    %     predicted_characters_indices = [predicted_characters_indices find(strcmp(character_list,character),1,'first')];
-    %
-    %     data = [];
-    %     data.angle_probabilities = angle_probabilities;
-    %     data.matching_point_fractions = matching_points_fractions;
-    %     data.matching_point_probabilities = posterior_CP_matching;
-    %     data.pscore = pscore;
-    %     data.characters = character_list;
-    %     savefilename = strrep(filename,'.mat_phase_comp.mat','feature.mat');
-    %     save(savefilename,'data');
-    %     disp(['<strong>The gesture shape is: ',character,'</strong>!']);
-%     close all;
+        if (debug)
+            disp(['Matching points: ',num2str(matching_points_fractions)]);
+        end
+        [character,pscore] = gesture_classification_CP(angle_probabilities,matching_points_fractions,max_val,min_val_TRRS);
+        predicted_characters_indices = [predicted_characters_indices find(strcmp(character_list,character),1,'first')];
+        disp(['<strong>The gesture shape is: ',character,'</strong>!']);
+    close all;
 end
 % groundTruth_characters = character_list(groundTruth_characters_indices);
 % predicted_characters = character_list(predicted_characters_indices);
@@ -371,10 +365,13 @@ end
 % figure;
 % cm_indices = confusionchart(groundTruth_characters_indices,predicted_characters_indices,...
 %     'Normalization','row-normalized');
+% figure;
+% for i = 1:3
+%     plot(area_ratio_list{i}, ones(1,length(peaks_detected_length_list{i})),'o'); hold on;grid on;
+%     xlabel('area ratio');
+%     ylabel('peaks detected length');
+%     ax = gca; ax.FontSize = 14;
+% end
+%%  Histogram plot
 figure;
-for i = 1:3
-plot(area_ratio_list{i}, peaks_detected_length_list{i},'ro'); hold on;grid on;
-xlabel('area ratio');
-ylabel('peaks detected length');
-ax = gca; ax.FontSize = 14;
-end
+h = histogram(area_ratio_list,100);

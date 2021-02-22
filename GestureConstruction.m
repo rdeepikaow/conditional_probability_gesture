@@ -79,7 +79,7 @@ classdef GestureConstruction
                         outliers = [outliers i];
                     end
                 end
-                outliers = [];
+%                 outliers = [];
                 obj.similarity_matrix_(:,outliers)=[];
                 obj.similarity_matrix_(outliers,:)=[];
             end
