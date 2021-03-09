@@ -21,25 +21,26 @@ for i = 1:nstep:N
         NumofSampleforCorr = size(CSI_Block, 2) - lag;
         subcarrier_sensitivity_matrix( : , lag+1) = mean(CSI_Block( : , end-NumofSampleforCorr-lag+1 : end-lag) .* CSI_Block(:, end-NumofSampleforCorr+1 : end), 2);
     end
-        subcarrier_sensitivity_tmp = subcarrier_sensitivity_matrix(:, 2) ./ (subcarrier_sensitivity_matrix(:, 1) + eps);
-
-            
+    subcarrier_sensitivity_tmp = subcarrier_sensitivity_matrix(:, 2) ./ (subcarrier_sensitivity_matrix(:, 1) + eps);
+    
+    
     sorted_SS = sort(subcarrier_sensitivity_tmp,'descend');
-%     weight_selected = sorted_SS(1:num_useful_subcarriers);
-%     
-%     
-%     %% MRC combining
-%     acf_mrc_weight = max(weight_selected, 0) / (norm(max(weight_selected, 0), 1) + eps);    % The normalized MRC weights
-%     ms_weighted = acf_mrc_weight.*weight_selected;    % MRC combining step 1
+    weight_selected = sorted_SS(1:num_useful_subcarriers);
+    %
+    %
+    %% MRC combining
+    %     acf_mrc_weight = max(weight_selected, 0) / (norm(max(weight_selected, 0), 1) + eps);    % The normalized MRC weights
+    %     ms_weighted = acf_mrc_weight.*weight_selected;    % MRC combining step 1
     motion_statistics(i) = mean(sorted_SS);
+    %     motion_statistics(i) = ms_weighted;
 end
-figure;
-plot((mactimer-mactimer(1))/1e6, motion_statistics,'LineWidth',2,'LineStyle','--'); hold on;grid on;
-plot((mactimer-mactimer(1))/1e6, smooth(motion_statistics,0.2,'rloess'),'k-','LineWidth',1); hold on;grid on;
-xlabel('Time(s)');ylabel('Motion Statistics');
-ylim([-0.05 0.3]);
-xlim([0,(mactimer(end)-mactimer(1))/1e6]);
-ax = gca; ax.FontSize = 14;
-legend('Raw','Smoothed');
+if (debug)
+    figure;
+    plot((mactimer-mactimer(1))/1e6, motion_statistics,'LineWidth',2,'LineStyle','--'); hold on;grid on;
+    xlabel('Time(s)');ylabel('Motion Statistics');
+    ylim([-0.05 0.3]);
+    xlim([0,(mactimer(end)-mactimer(1))/1e6]);
+    ax = gca; ax.FontSize = 14;
+end
 end
 

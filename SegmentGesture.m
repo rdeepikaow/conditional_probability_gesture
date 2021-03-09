@@ -67,7 +67,7 @@ classdef SegmentGesture
                 end
             end
             obj.motion_index_ = motion_index;
-            motion_index_smoothed = smooth(motion_index,0.2,'loess');
+            motion_index_smoothed = smooth(motion_index,0.1,'loess');
             obj.motion_index_smoothed_ = motion_index_smoothed;
             [pks,peaks] = findpeaks(motion_index_smoothed,'MinPeakDistance',obj.min_segment_duration_*obj.sounding_rate_set_,'MinPeakHeight',10);
             
@@ -93,7 +93,7 @@ classdef SegmentGesture
         
         
         function obj = ms_segmentation(obj,motion_statistics)
-            smoothed_ms = smooth(motion_statistics,0.2,'rloess');
+            smoothed_ms = smooth(motion_statistics,0.15,'rloess');
             if (obj.debug_)
                 figure;
                 plot(1:length(motion_statistics),motion_statistics); hold on;grid on;
@@ -152,7 +152,7 @@ classdef SegmentGesture
         function obj = find_extremums(obj,signal)
             %% Function detects local peaks and returns the peak information for the direction function
             N = length(signal);    % length of the signal
-            L = 20;
+            L = 35;
             peaks = [];
             for index = 1 : N
                 % peaks

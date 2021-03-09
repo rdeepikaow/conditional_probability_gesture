@@ -94,7 +94,7 @@ classdef GestureConstruction
                 xlabel('CSI sample index'); ylabel('CSI sample index');title('Correlation Matrix');
                 ax = gca; ax.FontSize = 14;
             end
-            obj.motion_statistics_ = MotionStatistics5300_updated(obj.matfilename_,0,obj.num_useful_subcarriers_,obj.sf_,obj.debug_,outliers);
+             obj.motion_statistics_ = MotionStatistics5300_updated(obj.matfilename_,0,obj.num_useful_subcarriers_,obj.sf_,obj.debug_,outliers);
         end
     end
 end

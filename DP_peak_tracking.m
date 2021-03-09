@@ -28,6 +28,12 @@ matrix(:,discard_indices) = [];
 [L,N] = size(matrix);
 total_cost = cell(1,N);
 total_index = cell(1,N);
+if isempty(start_index)
+    peaks_tracked_final = [];
+    fraction_of_segment = 0;
+    return;
+end
+    
 total_cost{start_index} = zeros(1,L);
 total_index{start_index}=ones(1,L).*peaks(start_index);
 for i = start_index+1:N
@@ -125,7 +131,7 @@ fraction_of_segment = max(fraction_of_segment1,fraction_of_segment2);
 discard_indices = find(isnan(peaks_tracked_continuous));
 peaks_tracked_continuous_bak = peaks_tracked_continuous;
 peaks_tracked_continuous(discard_indices) = [];
-N = 30;
+N = 40;
 difference_peaks_location = sign(-diff(peaks_tracked_continuous));
 difference_peaks_location(isnan(difference_peaks_location)) = 0;
 past_N_sum = movsum(difference_peaks_location,N);

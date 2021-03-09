@@ -232,8 +232,11 @@ classdef TurnAngleEstimation
                     break;
                 end
             end
+            % outlier removal
+%             [~,outliers] = hampel(1:length(tracked_peaks),tracked_peaks,10);
+%             tracked_peaks(outliers) = nan;
             for j = i+1:datalength
-                if tracked_peaks(j)-prev_loc>50
+                if tracked_peaks(j)-prev_loc>200
                     tracked_peaks(j) = nan;
                 else
                     prev_loc = tracked_peaks(j);
